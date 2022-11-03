@@ -1,0 +1,155 @@
+---
+title: "simulation"
+author: "Amy Yeung"
+date: "2022-11-03"
+output: github_document
+---
+
+
+wow you can type multiple rows of text at the same time with shift+option!!
+wow you can type multiple rows of text at the same time with shift+option!!
+wow you can type multiple rows of text at the same time with shift+option!!
+wow you can type multiple rows of text at the same time with shift+option!!
+wow you can type multiple rows of text at the same time with shift+option!!
+
+
+```{r}
+library(tidyverse)
+```
+
+
+## Simulations!!
+
+```{r}
+sim_mean_sd = function(n_obs, mu = 7, sigma = 4) {
+   x = rnorm(n = n_obs, mean = mu, sd = sigma)
+
+  tibble(
+  mu_hat = mean(x),
+  sigma_hat = sd(x)
+  )
+}
+```
+
+
+How did we use this before?
+
+```{r}
+sim_mean_sd(n_obs = 30)
+sim_mean_sd(n_obs = 30)
+sim_mean_sd(n_obs = 30)
+
+```
+
+
+Each time returns a different result - How do we put them all together?
+
+Let's start with a for loop!
+
+```{r}
+output = vector("list", length = 100) # do it 100 times
+
+for (i in 1:100) {
+  output[[i]] = sim_mean_sd(n_obs = 30)
+}
+
+bind_rows(output) 
+```
+
+Let's use list columns instead
+
+`expand_grid` to give all possible combinations of inputs
+
+```{r}
+sim_results_df =
+expand_grid(
+  sample_size = 30,
+  iteration = 1:100
+) %>% 
+  mutate(
+    estimate_df = map(sample_size, sim_mean_sd)
+  ) %>% 
+  unnest(estimate_df)
+```
+
+```{r}
+sim_results_df %>% 
+  ggplot(aes(x = mu_hat)) +
+  geom_density()
+```
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+## What about changing the sample size?
+
+```{r}
+sim_results_df =
+  expand_grid(
+  sample_size = c(30, 60, 90, 120),
+  iteration = 1:100
+) %>% 
+  mutate(
+    estimate_df = map(sample_size, sim_mean_sd)
+  ) %>% 
+  unnest(estimate_df)
+```
+
+4 sample sizes, 100 replicates each time - can look at distribution of sample means and sd.
+
+```{r}
+sim_results_df %>% 
+  mutate(
+    sample_size = str_c("N = ", sample_size),
+    sample_size = fct_inorder(sample_size)
+  ) %>% 
+  ggplot(aes(x = sample_size, y = mu_hat)) +
+  geom_violin()
+```
+
+```{r}
+sim_results_df %>% 
+  mutate(
+    sample_size = str_c("N = ", sample_size),
+    sample_size = fct_inorder(sample_size)
+  ) %>% 
+  group_by(sample_size) %>% 
+  summarise(
+    emp_st_err = sd(mu_hat)
+  )
+```
+
+Let's see 2 inputs with `map2`
+
+```{r, cache=TRUE}
+sim_results_df =
+  expand_grid(
+  sample_size = c(30, 60, 90, 120),
+  true_sigma = c(6, 3),
+  iteration = 1:1000
+) %>% 
+  mutate(
+    estimate_df = map2(.x = sample_size, .y = true_sigma, ~sim_mean_sd(n_obs = .x, sigma = .y)) 
+  ) %>% 
+  unnest(estimate_df)
+```
+
+
+```{r}
+sim_results_df %>% 
+  mutate(
+    sample_size = str_c("N = ", sample_size),
+    sample_size = fct_inorder(sample_size)
+  ) %>% 
+  ggplot(aes(x = sample_size, y = mu_hat)) +
+  geom_violin() +
+  facet_grid(.~ true_sigma)
+```
+
+Knitting simulations takes some time; start with small sample sizes and make sure things knit first, then increase sample size.
+
+
+
